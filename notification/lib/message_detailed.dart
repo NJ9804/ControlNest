@@ -18,9 +18,11 @@ class MessageDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final messageText = message['message']?.toString() ?? "(No message)";
+    final messageText = message['content']?.toString() ?? "(No message)";
     final priority = message['priority']?.toString() ?? "-";
-    final visibleUpto = formatDate(message['visible_upto']?.toString());
+    final expiry = formatDate(message['expiry']?.toString());
+    final group = message['group']?.toString() ?? "-";
+    final timestamp = formatDate(message['timestamp']?.toString());
 
     return Scaffold(
       appBar: AppBar(
@@ -35,9 +37,13 @@ class MessageDetailPage extends StatelessWidget {
             const SizedBox(height: 8),
             Text(messageText, style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 16),
+            Text("Group: $group", style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 8),
             Text("Priority: $priority", style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 8),
-            Text("Visible Until: $visibleUpto", style: const TextStyle(fontSize: 16)),
+            Text("Sent: $timestamp", style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 8),
+            Text("Visible Until: $expiry", style: const TextStyle(fontSize: 16)),
           ],
         ),
       ),

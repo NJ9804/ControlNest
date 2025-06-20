@@ -65,7 +65,7 @@ class _InboxPageState extends State<InboxPage> {
     });
     try {
       final response = await http.get(
-        Uri.parse("http://10.0.2.2:8000/messages/${widget.mobile}"),
+        Uri.parse("http://10.0.2.2:8000/api/messages/${widget.mobile}"),
       );
 
       if (response.statusCode == 200) {
@@ -146,15 +146,24 @@ class _InboxPageState extends State<InboxPage> {
                     itemCount: messages.length,
                     itemBuilder: (context, index) {
                       final msg = messages[index];
-                      final messageText = msg['message']?.toString() ?? "(No message)";
+                      final messageText = msg['content']?.toString() ?? "(No message)";
                       final priorityText = msg['priority']?.toString() ?? "-";
-                      final visibleUptoText = formatDate(msg['visible_upto']?.toString());
+                      final expiryText = formatDate(msg['expiry']?.toString());
+                      final groupText = msg['group']?.toString() ?? "-";
+                      final timestampText = formatDate(msg['timestamp']?.toString());
                       return Card(
                         margin: const EdgeInsets.all(8.0),
                         child: ListTile(
                           title: Text(messageText),
-                          subtitle: Text("Priority: $priorityText"),
-                          trailing: Text("📅 $visibleUptoText"),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text("Group: $groupText"),
+                              Text("Priority: $priorityText"),
+                              Text("Sent: $timestampText"),
+                            ],
+                          ),
+                          trailing: Text("📅 $expiryText"),
                           onTap: () {
                             Navigator.push(
                               context,

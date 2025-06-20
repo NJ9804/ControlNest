@@ -38,7 +38,7 @@ class _RegisterPageState extends State<RegisterPage> {
     }
 
     final response = await http.post(
-      Uri.parse("http://10.0.2.2:8000/register"),
+      Uri.parse("http://10.0.2.2:8000/api/register-device/${fcmToken}/${mobile}"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({"mobile": mobile, "fcm_token": fcmToken}),
     );
