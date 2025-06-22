@@ -111,21 +111,7 @@ export async function registerDevice(deviceId: string, phoneNumber: string) {
 // ---------------------------
 
 export async function getStats() {
-  try {
-    return {
-      totalGroups: 12,
-      totalSubgroups: 45,
-      totalContacts: 1250,
-      recentActivity: 8,
-    };
-  } catch {
-    return {
-      totalGroups: 0,
-      totalSubgroups: 0,
-      totalContacts: 0,
-      recentActivity: 0,
-    };
-  }
+  return apiRequest('/stats/');
 }
 
 // ---------------------------

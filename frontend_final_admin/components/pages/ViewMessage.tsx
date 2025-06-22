@@ -157,61 +157,21 @@ export default function ViewMessages() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <MessageSquare className="h-5 w-5 text-blue-600" />
-              <div>
-                <p className="text-sm text-gray-600">Total Messages</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {loading ? '...' : messages.length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Users className="h-5 w-5 text-green-600" />
-              {/* <div>
-                <p className="text-sm text-gray-600">Total Recipients</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {loading ? '...' : messages.reduce((sum, msg) => sum + (msg.recipient_count || 0), 0)}
-                </p>
-              </div> */}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-5 w-5 text-purple-600" />
-              <div>
-                <p className="text-sm text-gray-600">Recent Messages</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {loading ? '...' : messages.filter(msg => {
-                    const msgDate = new Date(msg.timestamp);
-                    const weekAgo = new Date();
-                    weekAgo.setDate(weekAgo.getDate() - 7);
-                    return msgDate > weekAgo;
-                  }).length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <History className="h-5 w-5" />
-            <span>Message History</span>
-          </CardTitle>
+            <div className="flex items-center justify-between w-full">
+            <CardTitle className="flex items-center space-x-2">
+              <History className="h-10 w-10" />
+              <span>Message History</span>
+            </CardTitle>
+            <div className="text-right">
+              <p className="text-sm text-gray-600">Total Messages</p>
+              <p className="text-2xl font-bold text-gray-900">
+              {loading ? '...' : messages.length}
+              </p>
+            </div>
+            </div>
           <div className="flex items-center space-x-2">
             <Search className="h-4 w-4 text-gray-400" />
             <Input
@@ -224,7 +184,7 @@ export default function ViewMessages() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex items-center justify-center p-8">
+            <div className="flex items-center justify-center p-10">
               <RefreshCw className="h-6 w-6 animate-spin text-gray-400" />
               <span className="ml-2 text-gray-600">Loading messages...</span>
             </div>
@@ -241,7 +201,7 @@ export default function ViewMessages() {
               </p>
             </div>
           ) : (
-            <div className="space-y-4 max-h-96 overflow-y-auto">
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
               {filteredMessages.map((message) => (
                 <div
                   key={message.id}
@@ -353,8 +313,7 @@ export default function ViewMessages() {
                 <p className="font-medium mb-1">Important Notice</p>
                 <p>
                   Deleting messages will permanently remove them from the system.
-                  This action cannot be undone. Messages that have already been sent
-                  to recipients will not be recalled.
+                  This action cannot be undone.
                 </p>
               </div>
             </div>

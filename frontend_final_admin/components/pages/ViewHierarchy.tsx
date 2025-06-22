@@ -114,7 +114,7 @@ export default function ViewHierarchy() {
     return groups.reduce((total, group) => {
       const groupContacts = group.contactCount || 0;
       const childContacts = group.children ? getTotalContacts(group.children) : 0;
-      return total + groupContacts + childContacts;
+      return total + groupContacts;
     }, 0);
   };
 
@@ -212,7 +212,7 @@ export default function ViewHierarchy() {
               <p>No groups found. Upload group structure to get started.</p>
             </div>
           ) : (
-            <div className="space-y-1 max-h-96 overflow-y-auto">
+            <div className="space-y-1 max-h-[60vh] overflow-y-auto">
               {groups.map((group) => (
                 <TreeNode key={group.id} group={group} level={0} searchTerm={searchTerm} />
               ))}

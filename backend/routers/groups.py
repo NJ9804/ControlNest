@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy.exc import OperationalError
-from models import Group, Contact
+from models import Group, Contact, Message
 from database import SessionLocal
 import pandas as pd
 from io import BytesIO
@@ -112,3 +112,20 @@ async def upload_groups(file: UploadFile = File(...), db: Session = Depends(get_
         raise HTTPException(status_code=500, detail="Database connection error. Please try again later.")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error processing file: {str(e)}")
+
+@router.get("/stats/")
+def get_group_stats(db: Session = Depends(get_db)):
+    try:
+        total_groups = db.query(Group).count()
+        total_contacts = db.query(Contact).count()
+        total_messages = db.query(func.count(Message.id)).scalar()
+
+        return {
+            "total_groups": total_groups,
+            "total_contacts": total_contacts,
+            "total_messages": total_messages
+        }
+    except OperationalError:
+        raise HTTPException(status_code=500, detail="Database connection error. Please try again later.")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error retrieving stats: {str(e)}")

@@ -172,18 +172,18 @@ export default function UploadGroups() {
             <div>
               <h3 className="font-semibold text-gray-900 mb-2">Excel File Structure:</h3>
               <ul className="list-disc list-inside space-y-1 text-gray-600">
-                <li>Column A: Main Group (e.g., Teaching, Non-Teaching)</li>
-                <li>Column B: Department (e.g., BTech, MTech)</li>
-                <li>Column C: Course/Branch (e.g., CSE, ECE)</li>
-                <li>Column D: Semester (e.g., S1, S2)</li>
-                <li>Column E: Division (e.g., CSE1, CSE2)</li>
-                <li>Column F: Category (e.g., Girls Hostel, Boys Hostel)</li>
+                <li>Column A: group_name </li>
+                <li>Column B: parent_name </li>
+                <li>
+                  For root-level groups, leave <strong>parent_name</strong> empty.
+                </li>
               </ul>
             </div>
             <div className="p-4 bg-blue-50 rounded-lg">
               <p className="text-sm text-blue-800">
                 <strong>Note:</strong> The system will automatically create a hierarchical structure 
-                based on your Excel data. Empty cells will be ignored, and duplicate entries will be merged.
+                based on your Excel data.
+
               </p>
             </div>
           </div>

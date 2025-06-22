@@ -232,10 +232,8 @@ export default function UploadContacts() {
             <div>
               <h3 className="font-semibold text-gray-900 mb-2">Excel File Structure:</h3>
               <ul className="list-disc list-inside space-y-1 text-gray-600">
-                <li>Column A: Contact Name (required)</li>
-                <li>Column B: Phone Number (required)</li>
-                <li>Column C: Email (optional)</li>
-                <li>Column D: Additional Notes (optional)</li>
+                <li>Column A: name (required)</li>
+                <li>Column B: phone (required)</li>
               </ul>
             </div>
             <div className="p-4 bg-blue-50 rounded-lg">

@@ -6,10 +6,9 @@ import { Users, TreePine, MessageSquare, Activity, History } from 'lucide-react'
 import { getStats } from '@/lib/api';
 
 interface Stats {
-  totalGroups: number;
-  totalSubgroups: number;
-  totalContacts: number;
-  recentActivity: number;
+  total_groups: number;
+  total_contacts: number;
+  total_messages: number;
 }
 
 interface DashboardProps {
@@ -18,10 +17,9 @@ interface DashboardProps {
 
 export default function Dashboard({ onNavigate }: DashboardProps) {
   const [stats, setStats] = useState<Stats>({
-    totalGroups: 0,
-    totalSubgroups: 0,
-    totalContacts: 0,
-    recentActivity: 0
+    total_groups: 0,
+    total_contacts: 0,
+    total_messages: 0
   });
   const [loading, setLoading] = useState(true);
 
@@ -78,28 +76,22 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatCard
           title="Total Groups"
-          value={stats.totalGroups}
+          value={stats.total_groups}
           icon={TreePine}
           color="text-green-600"
         />
         <StatCard
-          title="Total Subgroups"
-          value={stats.totalSubgroups}
-          icon={TreePine}
-          color="text-blue-600"
-        />
-        <StatCard
           title="Total Contacts"
-          value={stats.totalContacts}
+          value={stats.total_contacts}
           icon={Users}
           color="text-purple-600"
         />
         <StatCard
-          title="Recent Activity"
-          value={stats.recentActivity}
+          title="Total Messages"
+          value={stats.total_messages}
           icon={Activity}
           color="text-orange-600"
         />
@@ -111,7 +103,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           <CardTitle className="text-lg font-semibold">Quick Actions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 flex flex-wrap justify-center items-center">
             <div 
               className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
               onClick={() => handleQuickActionClick('upload-groups')}
@@ -189,6 +181,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           </div>
         </CardContent>
       </Card>
+
     </div>
   );
 }
