@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import Group, Message, Contact
 from sqlalchemy import func
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from firebase_admin import messaging
 
@@ -96,8 +96,17 @@ def get_messages_by_contact(phone_number: str, db: Session = Depends(get_db)):
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
     group_ids = [g.id for g in contact.groups]
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     messages = db.query(Message).filter(Message.group_id.in_(group_ids), Message.expiry > now).order_by(Message.timestamp.desc()).all()
+
+    # Deduplicate messages by content, prefer parent group (lowest id)
+    unique_messages = {}
+    for msg in messages:
+        print(f"Processing message: {msg.id}, content: {msg.content}, group_id: {msg.group_id}")
+        key = msg.id  # or (msg.content, msg.priority, msg.expiry) for stricter uniqueness
+        if key not in unique_messages or msg.group_id < unique_messages[key].group_id:
+            unique_messages[key] = msg
+
     return [
         {
             "id": msg.id,
@@ -107,7 +116,7 @@ def get_messages_by_contact(phone_number: str, db: Session = Depends(get_db)):
             "expiry": msg.expiry.strftime("%Y-%m-%d %H:%M"),
             "timestamp": msg.timestamp.strftime("%Y-%m-%d %H:%M")
         }
-        for msg in messages
+        for msg in unique_messages.values()
     ]
 
 @router.delete("/messages/{message_id}/")
