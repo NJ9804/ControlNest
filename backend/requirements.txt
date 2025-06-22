@@ -1,0 +1,9 @@
+fastapi[standard]
+sqlalchemy
+psycopg2-binary
+python-multipart
+python-dotenv
+pandas
+alembic
+openpyxl
+firebase_admin
