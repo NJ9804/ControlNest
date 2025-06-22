@@ -14,7 +14,7 @@ import {
   Users,
   AlertTriangle
 } from 'lucide-react';
-import { getMessageHistory, deleteMessage } from '@/lib/api';
+import { getMessageHistory, deleteMessage, updateMessage } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
 interface Message {
@@ -31,6 +31,10 @@ export default function ViewMessages() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [editPriority, setEditPriority] = useState('');
+  const [editExpiry, setEditExpiry] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -85,6 +89,47 @@ export default function ViewMessages() {
     }
   };
 
+  const handleEditClick = (msg: Message) => {
+    setEditingId(msg.id);
+    setEditContent(msg.content);
+    setEditPriority(msg.priority);
+    setEditExpiry(msg.expiry);
+  };
+
+  const handleEditCancel = () => {
+    setEditingId(null);
+    setEditContent('');
+    setEditPriority('');
+    setEditExpiry('');
+  };
+
+  const handleEditSave = async (msg: Message) => {
+    try {
+      await updateMessage(msg.id, {
+        content: editContent,
+        priority: editPriority,
+        expiry: editExpiry,
+      });
+      toast({
+        title: 'Message updated',
+        description: `Message ID ${msg.id} has been updated.`,
+      });
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === msg.id
+            ? { ...m, content: editContent, priority: editPriority, expiry: editExpiry }
+            : m
+        )
+      );
+      handleEditCancel();
+    } catch (error) {
+      toast({
+        title: 'Update failed',
+        description: (error as Error).message,
+        variant: 'destructive',
+      });
+    }
+  };
 
   const formatDate = (timestamp: string) => {
     try {
@@ -222,27 +267,75 @@ export default function ViewMessages() {
                           <span>Expires: {message.expiry}</span>
                         </div>
                       </div>
-                      <div className="bg-white p-3 rounded border">
-                        <p className="text-gray-900 whitespace-pre-wrap">{message.content}</p>
-                      </div>
+                      {editingId === message.id ? (
+                        <div className="bg-white p-3 rounded border space-y-2">
+                          <textarea
+                            className="w-full border rounded p-2"
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                            rows={3}
+                          />
+                          <div className="flex space-x-2">
+                            <select
+                              className="border rounded p-1 text-xs"
+                              value={editPriority}
+                              onChange={(e) => setEditPriority(e.target.value)}
+                            >
+                              <option value="low">Low</option>
+                              <option value="medium">Medium</option>
+                              <option value="high">High</option>
+                            </select>
+                            <input
+                              type="date"
+                              className="border rounded p-1 text-xs"
+                              placeholder="Expiry (YYYY-MM-DD)"
+                              value={editExpiry.slice(0, 10)}
+                              onChange={(e) => setEditExpiry(e.target.value)}
+                            />
+                          </div>
+                          <div className="flex space-x-2 mt-2">
+                            <Button size="sm" onClick={() => handleEditSave(message)} disabled={deleting === message.id}>
+                              Save
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={handleEditCancel}>
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-white p-3 rounded border">
+                          <p className="text-gray-900 whitespace-pre-wrap">{message.content}</p>
+                        </div>
+                      )}
                       <div className="flex items-center space-x-4 text-xs text-gray-500">
                         <span>Length: {message.content.length} chars</span>
                         <span>Type: {message.content.length > 160 ? 'Long SMS' : 'SMS'}</span>
                       </div>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteMessage(message.id)}
-                      disabled={deleting === message.id}
-                      className="ml-4 text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      {deleting === message.id ? (
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
-                    </Button>
+                    <div className="flex flex-col items-end space-y-2 ml-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteMessage(message.id)}
+                        disabled={deleting === message.id}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        {deleting === message.id ? (
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditClick(message)}
+                        disabled={editingId !== null && editingId !== message.id}
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      >
+                        Edit
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -271,4 +364,4 @@ export default function ViewMessages() {
     </div>
   );
 }
-        
+

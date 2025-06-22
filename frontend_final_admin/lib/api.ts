@@ -154,3 +154,14 @@ let groups: any = null;
 function setGroups(data: any) {
   groups = data;
 }
+
+// ---------------------------
+// ✏️ Update Message
+// ---------------------------
+
+export async function updateMessage(messageId: number, data: { content?: string; priority?: string; expiry?: string }) {
+  return apiRequest(`/messages/${messageId}/`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}

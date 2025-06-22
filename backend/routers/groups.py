@@ -16,38 +16,65 @@ def get_db():
     finally:
         db.close()
 
-def build_hierarchy(db, parent_id=None, path=''):
-    groups = db.query(Group).filter_by(parent_id=parent_id).all()
-    hierarchy = []
+def build_hierarchy(db: Session):
+    groups = db.query(Group).all()
+    group_map = {group.id: group for group in groups}
+
+    # Map of parent_id -> list of child groups
+    children_map = {}
     for group in groups:
+        children_map.setdefault(group.parent_id, []).append(group)
+
+    # Get direct contact counts per group
+    contact_counts = dict(
+        db.query(Group.id, func.count(Contact.id))
+        .select_from(Group)
+        .join(Group.contacts)
+        .group_by(Group.id)
+        .all()
+    )
+
+    # Recursive function to build tree with total contacts
+    def build_node(group, path=''):
         full_path = f"{path}/{group.name}" if path else group.name
-        hierarchy.append({
+        children = children_map.get(group.id, [])
+        child_nodes = [build_node(child, full_path) for child in children]
+
+        total_contacts = contact_counts.get(group.id, 0) + sum(child['contactCount'] for child in child_nodes)
+
+        return {
             "id": group.id,
             "name": group.name,
             "path": full_path,
-            "contactCount": len(group.contacts),
-            "children": build_hierarchy(db, group.id, full_path)
-        })
-    return hierarchy
+            "contactCount": total_contacts,
+            "children": child_nodes
+        }
+
+    # Start from root-level groups (parent_id=None)
+    return [build_node(group) for group in children_map.get(None, [])]
 
 @router.get("/groups/hierarchy/")
 def get_group_hierarchy(group_name: str = None, db: Session = Depends(get_db)):
+    groups = build_hierarchy(db)
+
     if group_name:
-        clean_name = group_name.strip()
-        group = db.query(Group).filter(func.lower(Group.name) == clean_name.lower()).first()
-        if not group:
+        clean_name = group_name.strip().lower()
+
+        def find_group(node_list):
+            for node in node_list:
+                if node["name"].lower() == clean_name:
+                    return node
+                child_result = find_group(node["children"])
+                if child_result:
+                    return child_result
+            return None
+
+        group_data = find_group(groups)
+        if not group_data:
             raise HTTPException(status_code=404, detail="Group not found")
-        path = group.name
-        children = build_hierarchy(db, group.id, path)
-        return [{
-            "id": group.id,
-            "name": group.name,
-            "path": path,
-            "contactCount": len(group.contacts),
-            "children": children
-        }]
-    else:
-        return build_hierarchy(db)
+        return [group_data]
+
+    return groups
 
 @router.post("/upload-groups/")
 async def upload_groups(file: UploadFile = File(...), db: Session = Depends(get_db)):
@@ -56,12 +83,12 @@ async def upload_groups(file: UploadFile = File(...), db: Session = Depends(get_
         df = pd.read_excel(BytesIO(contents))
 
         for _, row in df.iterrows():
-            group_name = row['group_name']
-            parent_name = row.get('parent_name')
+            group_name = str(row['group_name']).strip()
+            parent_name = str(row['parent_name']).strip() if pd.notna(row.get('parent_name')) else None
 
             parent_id = None
-            if pd.notna(parent_name):
-                parent_group = db.query(Group).filter_by(name=parent_name).first()
+            if parent_name:
+                parent_group = db.query(Group).filter(func.lower(Group.name) == parent_name.lower()).first()
                 if not parent_group:
                     parent_group = Group(name=parent_name)
                     db.add(parent_group)
@@ -69,13 +96,19 @@ async def upload_groups(file: UploadFile = File(...), db: Session = Depends(get_
                     db.refresh(parent_group)
                 parent_id = parent_group.id
 
-            existing = db.query(Group).filter_by(name=group_name, parent_id=parent_id).first()
+            existing = db.query(Group).filter(
+                func.lower(Group.name) == group_name.lower(),
+                Group.parent_id == parent_id
+            ).first()
+
             if not existing:
                 new_group = Group(name=group_name, parent_id=parent_id)
                 db.add(new_group)
                 db.commit()
-    except OperationalError as e:
+
+        return {"status": "Groups uploaded"}
+
+    except OperationalError:
         raise HTTPException(status_code=500, detail="Database connection error. Please try again later.")
-
-    return {"status": "Groups uploaded"}
-
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error processing file: {str(e)}")

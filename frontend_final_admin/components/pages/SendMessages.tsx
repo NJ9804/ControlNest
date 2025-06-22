@@ -22,6 +22,8 @@ export default function SendMessages() {
   const [selectedGroup, setSelectedGroup] = useState<string>(''); // holds group name now
   const [groups, setGroups] = useState<Group[]>([]);
   const [sending, setSending] = useState(false);
+  const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [expiryDays, setExpiryDays] = useState<number>(1);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -61,13 +63,15 @@ const handleSendMessage = async () => {
   setSending(true);
   try {
     // Use group id directly as required by the API
-    await sendMessageToGroupId(Number(selectedGroup), message);
+    await sendMessageToGroupId(Number(selectedGroup), message, priority, expiryDays);
     toast({
       title: "Message sent!",
       description: "Your message has been sent successfully to the selected group and its subgroups.",
     });
     setMessage('');
     setSelectedGroup('');
+    setPriority('medium');
+    setExpiryDays(1);
   } catch (error) {
     toast({
       title: "Failed to send message",
@@ -130,6 +134,33 @@ const handleSendMessage = async () => {
             )}
           </div>
 
+          {/* Priority Selection */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Priority *</label>
+            <Select value={priority} onValueChange={v => setPriority(v as 'low' | 'medium' | 'high')}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Expiry Day Input */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Expiry (days) *</label>
+            <input
+              type="number"
+              min={1}
+              value={expiryDays}
+              onChange={e => setExpiryDays(Math.max(1, Number(e.target.value)))}
+              className="border rounded px-3 py-2 w-32"
+            />
+          </div>
+
           {/* Message Input */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">
@@ -178,6 +209,10 @@ const handleSendMessage = async () => {
                   <span className="text-xs text-gray-500">
                     {selectedGroupInfo.contactCount} recipients
                   </span>
+                </div>
+                <div className="flex items-center gap-4 mb-2">
+                  <span className="text-xs text-blue-700 font-semibold">Priority: {priority.charAt(0).toUpperCase() + priority.slice(1)}</span>
+                  <span className="text-xs text-orange-700 font-semibold">Expires in: {expiryDays} day{expiryDays > 1 ? 's' : ''}</span>
                 </div>
                 <div className="bg-white p-3 rounded border">
                   <p className="text-gray-900 whitespace-pre-wrap">{message}</p>
