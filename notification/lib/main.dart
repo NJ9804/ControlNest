@@ -29,17 +29,51 @@ Future<void> main() async {
 
   final prefs = await SharedPreferences.getInstance();
   final savedMobile = prefs.getString('mobile');
-
-  runApp(MaterialApp(
-    title: 'FCM FastAPI Demo',
-    home: savedMobile == null ? RegisterPage() : InboxPage(mobile: savedMobile),
-    debugShowCheckedModeBanner: false,
-  ));
+  runApp(
+    MaterialApp(
+      title: 'Notification App',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.light,
+        ),
+        useMaterial3: true,
+        appBarTheme: const AppBarTheme(elevation: 0, centerTitle: false),
+        cardTheme: CardTheme(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+        ),
+      ),
+      home:
+          savedMobile == null ? RegisterPage() : InboxPage(mobile: savedMobile),
+      debugShowCheckedModeBanner: false,
+    ),
+  );
 }
 
 Future<void> _initializeNotifications() async {
   const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-  const initializationSettings = InitializationSettings(android: androidSettings);
+  const initializationSettings = InitializationSettings(
+    android: androidSettings,
+  );
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
   await FirebaseMessaging.instance.requestPermission(
@@ -49,6 +83,8 @@ Future<void> _initializeNotifications() async {
   );
 
   await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin
+      >()
       ?.createNotificationChannel(channel);
 }
