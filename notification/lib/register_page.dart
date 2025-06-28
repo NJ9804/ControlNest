@@ -18,10 +18,15 @@ class _RegisterPageState extends State<RegisterPage>
   String? fcmToken;
   bool isLoading = false;
   bool isRegistering = false;
+  bool isSuccess = false;
+  bool isFailed = false; // <-- Added for failed state
   late AnimationController _fadeController;
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  late AnimationController _successController; // <-- For tick animation
+  late Animation<double> _successScale;
+
   @override
   void initState() {
     super.initState();
@@ -38,6 +43,14 @@ class _RegisterPageState extends State<RegisterPage>
     _slideController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
+    );
+
+    _successController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    _successScale = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _successController, curve: Curves.elasticOut),
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -59,6 +72,7 @@ class _RegisterPageState extends State<RegisterPage>
   void dispose() {
     _fadeController.dispose();
     _slideController.dispose();
+    _successController.dispose();
     mobileController.dispose();
     super.dispose();
   }
@@ -95,6 +109,8 @@ class _RegisterPageState extends State<RegisterPage>
 
     setState(() {
       isRegistering = true;
+      isSuccess = false;
+      isFailed = false;
     });
 
     // Add haptic feedback
@@ -103,7 +119,7 @@ class _RegisterPageState extends State<RegisterPage>
     try {
       final response = await http.post(
         Uri.parse(
-          "http://10.0.2.2:8000/api/register-device/${fcmToken}/${mobile}",
+          "https://notification-j802.onrender.com/api/register-device/${fcmToken}/${mobile}",
         ),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"mobile": mobile, "fcm_token": fcmToken}),
@@ -112,9 +128,14 @@ class _RegisterPageState extends State<RegisterPage>
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('mobile', mobile);
 
-        _showSnackBar(context, "Registration successful");
+        setState(() {
+          isSuccess = true;
+          isRegistering = false;
+          isFailed = false;
+        });
+        _successController.forward(from: 0.0);
 
-        // Small delay to show success message
+        // Small delay to show success animation
         await Future.delayed(const Duration(milliseconds: 1200));
 
         if (mounted) {
@@ -147,13 +168,29 @@ class _RegisterPageState extends State<RegisterPage>
                 ? "Phone number not found"
                 : "Registration failed";
         _showSnackBar(context, errorData);
+        setState(() {
+          isRegistering = false;
+          isSuccess = false;
+          isFailed = true;
+        });
+        await Future.delayed(const Duration(milliseconds: 1400));
+        if (mounted) {
+          setState(() {
+            isFailed = false;
+          });
+        }
       }
     } catch (e) {
       _showSnackBar(context, "Connection error. Please check your network.");
-    } finally {
+      setState(() {
+        isRegistering = false;
+        isSuccess = false;
+        isFailed = true;
+      });
+      await Future.delayed(const Duration(milliseconds: 1400));
       if (mounted) {
         setState(() {
-          isRegistering = false;
+          isFailed = false;
         });
       }
     }
@@ -383,32 +420,56 @@ class _RegisterPageState extends State<RegisterPage>
   }
 
   Widget _buildRegisterButton(ColorScheme colorScheme) {
-    final isButtonEnabled = !isLoading && !isRegistering && fcmToken != null;
+    final isButtonEnabled = !isLoading && !isRegistering && fcmToken != null && !isSuccess && !isFailed;
+    final buttonColor = isSuccess
+        ? Colors.green
+        : isFailed
+            ? Colors.red
+            : isButtonEnabled
+                ? null
+                : colorScheme.outline.withOpacity(0.3);
+    final gradient = isSuccess || isFailed
+        ? null
+        : isButtonEnabled
+            ? LinearGradient(
+                colors: [colorScheme.primary, colorScheme.secondary],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              )
+            : null;
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 350),
       height: 56,
       decoration: BoxDecoration(
-        gradient:
-            isButtonEnabled
-                ? LinearGradient(
-                  colors: [colorScheme.primary, colorScheme.secondary],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                )
-                : null,
-        color: !isButtonEnabled ? colorScheme.outline.withOpacity(0.3) : null,
+        gradient: gradient,
+        color: buttonColor,
         borderRadius: BorderRadius.circular(16),
-        boxShadow:
-            isButtonEnabled
+        boxShadow: isSuccess
+            ? [
+                BoxShadow(
+                  color: Colors.green.withOpacity(0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ]
+            : isFailed
                 ? [
-                  BoxShadow(
-                    color: colorScheme.primary.withOpacity(0.4),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ]
-                : null,
+                    BoxShadow(
+                      color: Colors.red.withOpacity(0.4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : isButtonEnabled
+                    ? [
+                        BoxShadow(
+                          color: colorScheme.primary.withOpacity(0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                      ]
+                    : null,
       ),
       child: Material(
         color: Colors.transparent,
@@ -417,46 +478,90 @@ class _RegisterPageState extends State<RegisterPage>
           borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (isRegistering) ...[
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        colorScheme.onPrimary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                ],
-
-                Icon(
-                  isRegistering ? null : Icons.app_registration,
-                  color:
-                      isButtonEnabled
-                          ? colorScheme.onPrimary
-                          : colorScheme.onSurface.withOpacity(0.4),
-                  size: 20,
+            child: Center(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 400),
+                switchInCurve: Curves.easeOutBack,
+                switchOutCurve: Curves.easeIn,
+                transitionBuilder: (child, anim) => FadeTransition(
+                  opacity: anim,
+                  child: ScaleTransition(scale: anim, child: child),
                 ),
-
-                const SizedBox(width: 8),
-
-                Text(
-                  isRegistering ? "Registering..." : "Register Device",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color:
-                        isButtonEnabled
-                            ? colorScheme.onPrimary
-                            : colorScheme.onSurface.withOpacity(0.4),
-                  ),
-                ),
-              ],
+                child: isSuccess
+                    ? ScaleTransition(
+                        scale: _successScale,
+                        key: const ValueKey('success'),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.check_circle, color: Colors.white, size: 28),
+                            const SizedBox(width: 10),
+                            Text(
+                              "Success!",
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : isFailed
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            key: const ValueKey('failed'),
+                            children: [
+                              Icon(Icons.cancel, color: Colors.white, size: 28),
+                              const SizedBox(width: 10),
+                              Text(
+                                "Failed",
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            key: const ValueKey('register'),
+                            children: [
+                              if (isRegistering) ...[
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      isSuccess ? Colors.white : colorScheme.onPrimary,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                              ],
+                              Icon(
+                                isRegistering ? null : Icons.app_registration,
+                                color: isButtonEnabled
+                                    ? colorScheme.onPrimary
+                                    : colorScheme.onSurface.withOpacity(0.4),
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                isRegistering ? "Registering..." : "Register Device",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: isButtonEnabled
+                                      ? colorScheme.onPrimary
+                                      : colorScheme.onSurface.withOpacity(0.4),
+                                ),
+                              ),
+                            ],
+                          ),
+              ),
             ),
           ),
         ),

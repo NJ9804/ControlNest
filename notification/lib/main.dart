@@ -5,6 +5,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'register_page.dart';
 import 'inbox.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -24,6 +25,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await Hive.initFlutter(); // Initialize Hive
+  await Hive.openBox('messages'); // Open a box for messages
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   await _initializeNotifications();
 
@@ -39,7 +42,7 @@ Future<void> main() async {
         ),
         useMaterial3: true,
         appBarTheme: const AppBarTheme(elevation: 0, centerTitle: false),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),

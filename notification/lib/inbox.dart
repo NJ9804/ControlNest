@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'register_page.dart';
 import 'message_detailed.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class InboxPage extends StatefulWidget {
   final String mobile;
@@ -22,16 +23,42 @@ class _InboxPageState extends State<InboxPage> with TickerProviderStateMixin {
   List<dynamic> messages = [];
   String? errorMessage;
   bool isLoading = false;
-  String selectedFilter = 'All';
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
+  late Box hiveBox;
 
   // Helper to format date string
   String formatDate(String? isoString) {
     if (isoString == null) return "-";
     try {
       final dt = DateTime.parse(isoString);
-      return DateFormat('yyyy-MM-dd HH:mm').format(dt);
+      final dtIst = dt.add(const Duration(hours: 5, minutes: 30));
+      return DateFormat('yyyy-MM-dd HH:mm').format(dtIst);
+    } catch (_) {
+      return isoString;
+    }
+  }
+
+  // Helper to format timestamp in a user-friendly way
+  String formatTimestamp(String? isoString) {
+    if (isoString == null) return "-";
+    try {
+      final dt = DateTime.parse(isoString);
+      final dtIst = dt.add(const Duration(hours: 5, minutes: 30));
+      final now = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+      final today = DateTime(now.year, now.month, now.day);
+      final msgDay = DateTime(dtIst.year, dtIst.month, dtIst.day);
+      final diff = today.difference(msgDay).inDays;
+      String dayStr;
+      if (diff == 0) {
+        dayStr = "Today";
+      } else if (diff == 1) {
+        dayStr = "Yesterday";
+      } else {
+        dayStr = DateFormat('d MMM yyyy').format(dtIst);
+      }
+      String timeStr = DateFormat('h:mm a').format(dtIst);
+      return "$dayStr, $timeStr";
     } catch (_) {
       return isoString;
     }
@@ -41,6 +68,8 @@ class _InboxPageState extends State<InboxPage> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _initializeAnimations();
+    hiveBox = Hive.box('messages');
+    _loadMessagesFromHive();
     _fetchMessages();
     _setupFirebaseMessaging();
   }
@@ -80,6 +109,17 @@ class _InboxPageState extends State<InboxPage> with TickerProviderStateMixin {
     });
   }
 
+  void _loadMessagesFromHive() {
+    final cached = hiveBox.get(widget.mobile);
+    if (cached != null && cached is List) {
+      setState(() {
+        messages = List<Map<String, dynamic>>.from(
+          cached.map((e) => Map<String, dynamic>.from(e)),
+        );
+      });
+    }
+  }
+
   @override
   void dispose() {
     _fadeController.dispose();
@@ -90,39 +130,57 @@ class _InboxPageState extends State<InboxPage> with TickerProviderStateMixin {
     setState(() {
       isLoading = true;
       errorMessage = null;
+      // Do NOT clear messages here
     });
-
     try {
       final response = await http.get(
-        Uri.parse("http://10.0.2.2:8000/api/messages/${widget.mobile}"),
+        Uri.parse("https://notification-j802.onrender.com/api/messages/${widget.mobile}"),
       );
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data is List) {
+          // Sort by priority and timestamp (latest first)
+          data.sort((a, b) {
+            int priorityValue(String? p) {
+              switch ((p ?? '').toLowerCase()) {
+                case 'high':
+                  return 2;
+                case 'medium':
+                  return 1;
+                default:
+                  return 0;
+              }
+            }
+            int pA = priorityValue(a['priority']?.toString());
+            int pB = priorityValue(b['priority']?.toString());
+            if (pA != pB) return pB.compareTo(pA); // High first
+            // If same priority, sort by timestamp descending
+            DateTime tA = DateTime.tryParse(a['timestamp']?.toString() ?? '') ?? DateTime(1970);
+            DateTime tB = DateTime.tryParse(b['timestamp']?.toString() ?? '') ?? DateTime(1970);
+            return tB.compareTo(tA);
+          });
           setState(() {
             messages = data;
             errorMessage = null;
             isLoading = false;
           });
+          // Save to Hive for offline use
+          hiveBox.put(widget.mobile, data);
         } else {
           setState(() {
-            messages = [];
             errorMessage = "Invalid data format from server.";
             isLoading = false;
           });
         }
       } else {
         setState(() {
-          messages = [];
           errorMessage =
-              "Failed to load messages (status ${response.statusCode})";
+              "Failed to load messages (status {response.statusCode})";
           isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
-        messages = [];
         errorMessage = "Error loading messages: $e";
         isLoading = false;
       });
@@ -153,9 +211,6 @@ class _InboxPageState extends State<InboxPage> with TickerProviderStateMixin {
         opacity: _fadeAnimation,
         child: Column(
           children: [
-            // Filter Bar
-            _buildFilterBar(colorScheme),
-
             // Messages List
             Expanded(child: _buildMessagesList(colorScheme)),
           ],
@@ -257,24 +312,7 @@ class _InboxPageState extends State<InboxPage> with TickerProviderStateMixin {
                   colorScheme: colorScheme,
                   onTap: () => Navigator.pop(context),
                 ),
-                _buildDrawerItem(
-                  icon: Icons.send,
-                  title: "Sent",
-                  colorScheme: colorScheme,
-                  onTap: () => Navigator.pop(context),
-                ),
-                _buildDrawerItem(
-                  icon: Icons.star_outline,
-                  title: "Important",
-                  colorScheme: colorScheme,
-                  onTap: () => Navigator.pop(context),
-                ),
-                _buildDrawerItem(
-                  icon: Icons.archive_outlined,
-                  title: "Archive",
-                  colorScheme: colorScheme,
-                  onTap: () => Navigator.pop(context),
-                ),
+               
                 const Divider(height: 32),
                 _buildDrawerItem(
                   icon: Icons.settings,
@@ -349,101 +387,59 @@ class _InboxPageState extends State<InboxPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildFilterBar(ColorScheme colorScheme) {
-    final filters = ['All', 'Unread', 'Important', 'Today'];
-
-    return Container(
-      height: 60,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outline.withOpacity(0.2),
-            width: 1,
-          ),
-        ),
-      ),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: filters.length,
-        itemBuilder: (context, index) {
-          final filter = filters[index];
-          final isSelected = selectedFilter == filter;
-
-          return Container(
-            margin: const EdgeInsets.only(right: 12),
-            child: FilterChip(
-              label: Text(
-                filter,
-                style: TextStyle(
-                  color:
-                      isSelected
-                          ? colorScheme.onPrimary
-                          : colorScheme.onSurface.withOpacity(0.7),
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+  Widget _buildMessagesList(ColorScheme colorScheme) {
+    return ValueListenableBuilder(
+      valueListenable: hiveBox.listenable(keys: [widget.mobile]),
+      builder: (context, Box box, _) {
+        final cached = box.get(widget.mobile);
+        final localMessages = (cached != null && cached is List)
+            ? List<Map<String, dynamic>>.from(
+                cached.map((e) => Map<String, dynamic>.from(e)),
+              )
+            : [];
+        // Show error if there is no data at all
+        if (errorMessage != null && localMessages.isEmpty) {
+          return _buildErrorState(colorScheme);
+        }
+        if (localMessages.isEmpty) {
+          return _buildEmptyState(colorScheme);
+        }
+        return Column(
+          children: [
+            if (isLoading)
+              LinearProgressIndicator(
+                minHeight: 3,
+                color: colorScheme.primary,
+                backgroundColor: colorScheme.primaryContainer.withOpacity(0.2),
+              ),
+            if (errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Text(
+                  errorMessage!,
+                  style: TextStyle(
+                    color: colorScheme.error,
+                    fontSize: 13,
+                  ),
                 ),
               ),
-              selected: isSelected,
-              backgroundColor: colorScheme.surface,
-              selectedColor: colorScheme.primary,
-              checkmarkColor: colorScheme.onPrimary,
-              side: BorderSide(
-                color:
-                    isSelected
-                        ? colorScheme.primary
-                        : colorScheme.outline.withOpacity(0.3),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _fetchMessages,
+                color: colorScheme.primary,
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: localMessages.length,
+                  itemBuilder: (context, index) {
+                    final msg = localMessages[index];
+                    return _buildMessageItem(msg, colorScheme, index);
+                  },
+                ),
               ),
-              onSelected: (selected) {
-                setState(() {
-                  selectedFilter = filter;
-                });
-              },
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildMessagesList(ColorScheme colorScheme) {
-    if (isLoading) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              "Loading messages...",
-              style: TextStyle(color: colorScheme.onSurface.withOpacity(0.6)),
             ),
           ],
-        ),
-      );
-    }
-
-    if (errorMessage != null) {
-      return _buildErrorState(colorScheme);
-    }
-
-    if (messages.isEmpty) {
-      return _buildEmptyState(colorScheme);
-    }
-
-    return RefreshIndicator(
-      onRefresh: _fetchMessages,
-      color: colorScheme.primary,
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        itemCount: messages.length,
-        itemBuilder: (context, index) {
-          final msg = messages[index];
-          return _buildMessageItem(msg, colorScheme, index);
-        },
-      ),
+        );
+      },
     );
   }
 
@@ -456,7 +452,7 @@ class _InboxPageState extends State<InboxPage> with TickerProviderStateMixin {
     final priorityText = msg['priority']?.toString() ?? "Normal";
     final expiryText = formatDate(msg['expiry']?.toString());
     final groupText = msg['group']?.toString() ?? "General";
-    final timestampText = formatDate(msg['timestamp']?.toString());
+    final timestampText = formatTimestamp(msg['timestamp']?.toString());
 
     // Determine priority color
     Color priorityColor = colorScheme.onSurface.withOpacity(0.6);
@@ -477,7 +473,7 @@ class _InboxPageState extends State<InboxPage> with TickerProviderStateMixin {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withOpacity(0.08),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
