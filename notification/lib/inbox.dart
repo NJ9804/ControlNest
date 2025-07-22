@@ -45,7 +45,9 @@ class _InboxPageState extends State<InboxPage> with TickerProviderStateMixin {
     try {
       final dt = DateTime.parse(isoString);
       final dtIst = dt.add(const Duration(hours: 5, minutes: 30));
-      final now = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+      final now = DateTime.now().toUtc().add(
+        const Duration(hours: 5, minutes: 30),
+      );
       final today = DateTime(now.year, now.month, now.day);
       final msgDay = DateTime(dtIst.year, dtIst.month, dtIst.day);
       final diff = today.difference(msgDay).inDays;
@@ -134,7 +136,7 @@ class _InboxPageState extends State<InboxPage> with TickerProviderStateMixin {
     });
     try {
       final response = await http.get(
-        Uri.parse("https://notification-j802.onrender.com/api/messages/${widget.mobile}"),
+        Uri.parse("http://54.160.211.82:8000/api/messages/${widget.mobile}"),
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -151,12 +153,17 @@ class _InboxPageState extends State<InboxPage> with TickerProviderStateMixin {
                   return 0;
               }
             }
+
             int pA = priorityValue(a['priority']?.toString());
             int pB = priorityValue(b['priority']?.toString());
             if (pA != pB) return pB.compareTo(pA); // High first
             // If same priority, sort by timestamp descending
-            DateTime tA = DateTime.tryParse(a['timestamp']?.toString() ?? '') ?? DateTime(1970);
-            DateTime tB = DateTime.tryParse(b['timestamp']?.toString() ?? '') ?? DateTime(1970);
+            DateTime tA =
+                DateTime.tryParse(a['timestamp']?.toString() ?? '') ??
+                DateTime(1970);
+            DateTime tB =
+                DateTime.tryParse(b['timestamp']?.toString() ?? '') ??
+                DateTime(1970);
             return tB.compareTo(tA);
           });
           setState(() {
@@ -312,7 +319,7 @@ class _InboxPageState extends State<InboxPage> with TickerProviderStateMixin {
                   colorScheme: colorScheme,
                   onTap: () => Navigator.pop(context),
                 ),
-               
+
                 const Divider(height: 32),
                 _buildDrawerItem(
                   icon: Icons.settings,
@@ -392,11 +399,12 @@ class _InboxPageState extends State<InboxPage> with TickerProviderStateMixin {
       valueListenable: hiveBox.listenable(keys: [widget.mobile]),
       builder: (context, Box box, _) {
         final cached = box.get(widget.mobile);
-        final localMessages = (cached != null && cached is List)
-            ? List<Map<String, dynamic>>.from(
-                cached.map((e) => Map<String, dynamic>.from(e)),
-              )
-            : [];
+        final localMessages =
+            (cached != null && cached is List)
+                ? List<Map<String, dynamic>>.from(
+                  cached.map((e) => Map<String, dynamic>.from(e)),
+                )
+                : [];
         // Show error if there is no data at all
         if (errorMessage != null && localMessages.isEmpty) {
           return _buildErrorState(colorScheme);
@@ -417,10 +425,7 @@ class _InboxPageState extends State<InboxPage> with TickerProviderStateMixin {
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Text(
                   errorMessage!,
-                  style: TextStyle(
-                    color: colorScheme.error,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: colorScheme.error, fontSize: 13),
                 ),
               ),
             Expanded(
