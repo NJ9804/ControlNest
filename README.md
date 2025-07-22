@@ -61,6 +61,38 @@ College
 └── Admins
 ```
 
+controlnest/
+├── backend/
+│   ├── app/
+│   │   ├── core/              # Configs, security, init
+│   │   │   └── config.py
+│   │   │   └── auth.py
+│   │   ├── models/            # SQLAlchemy models
+│   │   │   └── user.py
+│   │   │   └── group.py
+│   │   ├── schemas/           # Pydantic schemas
+│   │   │   └── user_schema.py
+│   │   ├── routers/           # API routes
+│   │   │   └── users.py
+│   │   │   └── messages.py
+│   │   ├── utils/             # Excel, FCM, helper utils
+│   │   │   └── excel_parser.py
+│   │   │   └── fcm_push.py
+│   │   └── main.py            # FastAPI entry point
+│   └── requirements.txt
+├── frontend/                  # Next.js web app
+│   ├── pages/
+│   ├── components/
+│   ├── services/
+│   ├── styles/
+│   └── next.config.js
+├── mobile/                    # Flutter app
+│   ├── lib/
+│   │   ├── screens/
+│   │   ├── services/
+│   │   └── models/
+└── README.md
+
 You can:
 
 * Upload this hierarchy as a group tree.
