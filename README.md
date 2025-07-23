@@ -107,8 +107,8 @@ controlnest/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/vishnuhari17/controlnest.git
-cd controlnest
+git clone https://github.com/vishnuhari17/ControlNest.git
+cd ControlNest
 ```
 
 ### 2. Backend (FastAPI)
